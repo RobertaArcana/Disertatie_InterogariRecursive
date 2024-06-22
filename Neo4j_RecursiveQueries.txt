@@ -1,0 +1,912 @@
+--1. Afisarea unei liste cu primii 300 clienti inregistrati incepand cu, clientul 100 (name)
+MATCH (c:CUSTOMER)-[:CUSTOMER_NATION]->(n:NATION)
+WITH c.c_name AS customerName, c.c_custkey AS custKey
+ORDER BY custKey
+WHERE custKey>=100 AND custKey<=400
+WITH COLLECT({id: custKey, name: customerName}) AS customers
+RETURN REDUCE(s = 'All customers: ', customer IN customers | s + customer.id + '-' + customer.name + ', ') AS allCustomers;
+
+--2. Afisarea unei liste cu primii 100 clienti (key-name)
+MATCH (c:CUSTOMER)-[:CUSTOMER_NATION]->(n:NATION)
+WITH c.c_name AS customerName, c.c_custkey AS custKey
+ORDER BY custKey
+WHERE custKey<=100
+WITH COLLECT({id: custKey, name: customerName}) AS customers
+RETURN REDUCE(s = 'All customers: ', customer IN customers | s + customer.id + '-' + customer.name + ', ') AS allCustomers;
+
+--3. Afisarea unei liste cu cu numele tuturor regiunilor
+MATCH p=(n:NATION)-[:NATION_REGION*]->(r:REGION)
+WITH r.r_regionkey AS region_id, r.r_name AS region
+ORDER BY region_id
+WITH COLLECT(DISTINCT TRIM(region)) AS regionsNames
+RETURN REDUCE(s = 'All regions: ', name IN regionsNames | s + name + ', ') AS allRegions;
+
+--4. Afisarea unei liste cu toate natiunile (key-name)
+MATCH (n:NATION)-[:NATION_REGION*]->(:REGION)
+WITH n.n_nationkey AS nation_id, TRIM(n.n_name) AS nation
+ORDER BY nation_id
+WITH COLLECT(DISTINCT {id: nation_id, name: nation}) AS nations
+RETURN REDUCE(s = 'All nations: ', nation IN nations | s + nation.id + '-' + nation.name + ', ') AS allNations;
+
+--5. Afisarea unei liste cu numele tuturor natiunilor
+MATCH p=(n:NATION)-[:NATION_REGION*]->(r:REGION)
+WITH n.n_nationkey AS nation_id, n.n_name AS nation
+ORDER BY n.n_nationkey
+WITH COLLECT(DISTINCT TRIM(nation)) AS nationsNames
+RETURN REDUCE(s = 'All nations: ', name IN nationsNames | s + name + ', ') AS allNations;
+
+--6. Afisarea unei liste cu numele tuturor natiunilor (folosind minuscule)
+MATCH p=(n:NATION)-[:NATION_REGION*]->(r:REGION)
+WITH n.n_nationkey AS nation_id, TOLOWER(n.n_name) AS nation
+ORDER BY n.n_nationkey
+WITH COLLECT(DISTINCT TRIM(nation)) AS nationsNames
+RETURN REDUCE(s = 'All nations: ', name IN nationsNames | s + name + ', ') AS allNations;
+
+--7. Afisarea unei liste cu toti furnizorii (key-name)
+MATCH (s:SUPPLIER)-[:SUPPLIER_NATION*]->(:NATION)
+WITH s.s_suppkey AS supplier_id, TRIM(s.s_name) AS supplier
+ORDER BY s.s_suppkey
+WITH COLLECT(DISTINCT {id: supplier_id, name: supplier}) AS suppliers
+RETURN REDUCE(s = 'All suppliers: ', supplier IN suppliers | s + supplier.id + '-' + supplier.name + ', ') AS allSuppliers;
+
+--8. Afisarea unei liste cu primele 100 produse, incepand cu produsul ce are id-ul 30 (id: brand, size)
+MATCH (ps:PARTSUPP)-[:PARTSUPP_PART]->(p:PART)
+WITH ps.ps_partkey AS product_id, p.p_brand AS brand, p.p_size AS size
+ORDER BY product_id
+WHERE product_id>=30 AND product_id<=130
+WITH COLLECT(DISTINCT {id: product_id, brand: brand, size: size}) AS products
+RETURN REDUCE(s = 'All products: ', product IN products | s + product.id + ':' + TRIM(product.brand) + ', '+product.size  + '; ') AS allProducts;
+
+--9. Afisarea unei liste cu primele 100 produsele (id: brand)
+MATCH (ps:PARTSUPP)-[:PARTSUPP_PART]->(p:PART)
+WITH ps.ps_partkey AS product_id, p.p_brand AS brand, p.p_size AS size
+ORDER BY product_id
+WHERE product_id<=100
+WITH COLLECT(DISTINCT {id: product_id, brand: brand}) AS products
+RETURN REDUCE(s = 'All products: ', product IN products | s + product.id + ':' + TRIM(product.brand) + '; ') AS allProducts;
+
+--10. Afisarea unei liste cu toate natiunile pe regiuni
+MATCH (n:NATION)-[:NATION_REGION]->(r:REGION)
+WITH trim(r.r_name) AS regionName, n.n_nationkey AS nationId, trim(n.n_name) AS nationName
+ORDER BY regionName, nationName
+WITH regionName, COLLECT({id: nationId, name: nationName}) AS nations
+RETURN regionName, [nation IN nations | nation.id + '- ' + nation.name] AS nations_list;
+
+--11. Dintre primele 1000 comenzi, afisati-le pe toate care au aceeasi prioritate (o_orderpriority) ca și comanda X (2 atr selectate)
+MATCH (targetOrder:ORDERS {o_orderkey:1})
+MATCH (ordersWithSamePriority:ORDERS {o_orderpriority: targetOrder.o_orderpriority})
+WHERE ordersWithSamePriority.o_orderkey<=1000
+RETURN ordersWithSamePriority.o_orderkey AS orderid, TRIM(ordersWithSamePriority.o_orderpriority) AS priority_order;
+
+--12.  Dintre primele 1000 comenzi, afisati-le pe toate care au aceeasi prioritate (o_orderpriority) ca și comanda X  (toate atr selectate)
+MATCH (targetOrder:ORDERS {o_orderkey:1})
+MATCH (ordersWithSamePriority:ORDERS {o_orderpriority: targetOrder.o_orderpriority})
+WHERE ordersWithSamePriority.o_orderkey<=1000
+RETURN ordersWithSamePriority.o_orderkey AS OrderId,ordersWithSamePriority.o_custkey AS CustomerId, ordersWithSamePriority.o_orderstatus AS OrderStatus, 
+	   ordersWithSamePriority.o_orderdate AS OrderDate, ordersWithSamePriority.o_orderpriority AS OrderPriority, ordersWithSamePriority.o_clerk AS OrderClerk, 
+	   ordersWithSamePriority.o_shippriority AS OrderShippriority, ordersWithSamePriority.o_comment AS OrderComment;
+
+--13. Clientii care au aceeasi natiune ca a clientului X
+MATCH (targetCustomer:CUSTOMER {c_custkey: 1})
+MATCH (ordersWithSameNation:CUSTOMER {c_nationkey: targetCustomer.c_nationkey})
+MATCH (nation:NATION {n_nationkey: ordersWithSameNation.c_nationkey})
+RETURN ordersWithSameNation.c_custkey AS customerid,
+       nation.n_nationkey AS nationkey,
+       TRIM(nation.n_name) AS nationname
+LIMIT 50;
+
+--14. Comenzile cu acelasi status ca și comanda X 
+MATCH (targetOrder:ORDERS {o_orderkey:1})
+MATCH (ordersWithSameStatus:ORDERS {o_orderstatus: targetOrder.o_orderstatus})
+RETURN ordersWithSameStatus.o_orderkey AS order,TRIM(ordersWithSameStatus.o_orderstatus) AS orderStatus
+LIMIT 100;
+
+--15. Comenzile cu același responsabil (o_clerk) ca și comanda X
+MATCH (targetOrder:ORDERS {o_orderkey:1})
+MATCH (ordersWithSameorderClerk:ORDERS {o_clerk: targetOrder.o_clerk})
+RETURN ordersWithSameorderClerk.o_orderkey AS order,TRIM(ordersWithSameorderClerk.o_clerk) AS Clerk
+LIMIT 100;
+
+--16. Comenzile din acelasi an cu comanda X
+MATCH (targetOrder:ORDERS {o_orderkey: 1})
+MATCH (ordersWithSameorderDate:ORDERS)
+WHERE date(targetOrder.o_orderdate).year = date(ordersWithSameorderDate.o_orderdate).year
+RETURN ordersWithSameorderDate.o_orderkey AS order, ordersWithSameorderDate.o_orderdate AS date
+LIMIT 100;
+
+--17. Comenzile din acelasi an, luna cu comanda X
+MATCH (targetOrder:ORDERS {o_orderkey: 1})
+MATCH (ordersWithSameorderDate:ORDERS)
+WHERE date(targetOrder.o_orderdate).year = date(ordersWithSameorderDate.o_orderdate).year
+AND date(targetOrder.o_orderdate).month = date(ordersWithSameorderDate.o_orderdate).month
+RETURN ordersWithSameorderDate.o_orderkey AS order, ordersWithSameorderDate.o_orderdate AS date;
+
+--18. Comenzile din aceeasi luna cu comanda X
+MATCH (targetOrder:ORDERS {o_orderkey: 1})
+MATCH (ordersWithSameorderDate:ORDERS)
+WHERE date(targetOrder.o_orderdate).month = date(ordersWithSameorderDate.o_orderdate).month
+RETURN ordersWithSameorderDate.o_orderkey AS order, ordersWithSameorderDate.o_orderdate AS date
+LIMIT 500;
+
+--19. Comenzile din aceeasi zi cu comanda X
+MATCH (targetOrder:ORDERS {o_orderkey: 1})
+MATCH (ordersWithSameorderDate:ORDERS)
+WHERE date(targetOrder.o_orderdate).day = date(ordersWithSameorderDate.o_orderdate).day
+RETURN ordersWithSameorderDate.o_orderkey AS order, ordersWithSameorderDate.o_orderdate AS date
+LIMIT 500;
+
+--20. Comenzile plasate in acelasi an, luna, zi cu comanda X
+MATCH (targetOrder:ORDERS {o_orderkey: 1})
+MATCH (ordersWithSameorderDate:ORDERS)
+WHERE date(targetOrder.o_orderdate) = date(ordersWithSameorderDate.o_orderdate)
+RETURN ordersWithSameorderDate.o_orderkey AS order, ordersWithSameorderDate.o_orderdate AS date;
+
+--21. Comenzile care au acelasi total si sunt plasate in acelasi an cu comanda X
+MATCH (targetOrder:ORDERS {o_orderkey: 1})
+MATCH (ordersWithSameProperties:ORDERS)
+WHERE date(targetOrder.o_orderdate).year = date(ordersWithSameProperties.o_orderdate).year
+AND targetOrder.o_totalprice=ordersWithSameProperties.o_totalprice
+RETURN ordersWithSameProperties.o_orderkey AS order, ordersWithSameProperties.o_orderdate AS date, ordersWithSameProperties.o_totalprice AS total;
+
+--22. Comenzile cu un număr de linii mai mare decat numarul de linii din comanda X
+MATCH (targetOrder:LINEITEM {l_orderkey: 1})
+WITH max(targetOrder.l_linenumber) AS maxLineNumber
+MATCH (ordersWithSameProperties:LINEITEM)
+WHERE maxLineNumber < ordersWithSameProperties.l_linenumber
+RETURN ordersWithSameProperties.l_orderkey AS order, ordersWithSameProperties.l_linenumber AS numberOfLines
+ORDER BY order
+LIMIT 1000;
+
+--23. Comenzile cu același număr de linii ca și comanda X
+MATCH (targetOrder:LINEITEM {l_orderkey: 1})
+WITH max(targetOrder.l_linenumber) AS maxLineNumber
+MATCH (ordersWithSameProperties:LINEITEM)
+WHERE maxLineNumber = ordersWithSameProperties.l_linenumber
+RETURN ordersWithSameProperties.l_orderkey AS order, ordersWithSameProperties.l_linenumber AS numberOfLines
+ORDER BY order
+LIMIT 1000;
+
+--24. Comenzile cu același total ca și comanda X
+MATCH (targetOrder:ORDERS {o_orderkey: 1})
+WITH targetOrder.o_totalprice AS TotalPrice
+MATCH (ordersWithSameProperties:ORDERS)
+WHERE TotalPrice = ordersWithSameProperties.o_totalprice
+RETURN ordersWithSameProperties.o_orderkey AS orderid, ordersWithSameProperties.o_totalprice AS total
+ORDER BY orderid;
+
+--25. Clientii din aceeasi țară cu clientul X
+MATCH (targetCust:CUSTOMER {c_custkey: 1})
+MATCH (SameNation:CUSTOMER {c_nationkey: targetCust.c_nationkey})
+WHERE SameNation.c_custkey <> 1
+MATCH (SameNation)-[:CUSTOMER_NATION]->(nation)
+RETURN SameNation.c_custkey AS customerId, SameNation.c_name AS customer, SameNation.c_nationkey AS nationId, TRIM(nation.n_name) AS nationName;
+
+--26. Furnizorii din aceeasi țară cu furnizorul X
+MATCH (targetSupplier:SUPPLIER{s_suppkey: 6})
+MATCH (SameNation:SUPPLIER {s_nationkey: targetSupplier.s_nationkey})
+WHERE SameNation.s_suppkey <> 6
+MATCH (SameNation)-[:SUPPLIER_NATION]->(nation)
+RETURN SameNation.s_suppkey AS SupplierId, TRIM(SameNation.s_name) AS Supplier, SameNation.s_nationkey AS nationId, TRIM(nation.n_name) AS nationName;
+
+--27. Furnizorii din aceeasi țară cu clientul X
+MATCH (client:CUSTOMER {c_custkey: 1})-[:CUSTOMER_NATION]->(clientNation: NATION)
+MATCH (supplier:SUPPLIER)-[:SUPPLIER_NATION]->(supplierNation: NATION)
+WHERE supplierNation = clientNation
+RETURN supplier.s_suppkey AS SupplierId,
+       TRIM(supplier.s_name) AS Supplier,
+       supplierNation.n_nationkey AS NationId,
+       TRIM(supplierNation.n_name) AS NationName;
+	   
+--28. Furnizorii din aceeasi regiune cu furnizorul X	 
+MATCH (targetSupplier:SUPPLIER {s_suppkey:3 })-[:SUPPLIER_NATION]->(targetNation:NATION)-[:NATION_REGION]->(targetRegion:REGION)
+MATCH (sameRegionSupplier:SUPPLIER)-[:SUPPLIER_NATION]->(sameRegionNation:NATION)-[:NATION_REGION]->(targetRegion)
+WHERE sameRegionSupplier.s_suppkey <> 3
+RETURN sameRegionSupplier.s_suppkey AS SupplierId,
+       TRIM(sameRegionSupplier.s_name) AS Supplier,
+       sameRegionNation.n_regionkey AS regionId,
+       TRIM(targetRegion.r_name) AS regionName
+ORDER BY SupplierId;
+
+--29. Produsele furnizate de furnizori ai produsului X 
+MATCH (part:PARTSUPP {ps_partkey:3})-[:PARTSUPP_SUPPLIER]->(supplier:SUPPLIER)
+MATCH (supplier)-[:SUPPLIER_NATION]->(nation:NATION)-[:NATION_REGION]->(region:REGION)
+MATCH (otherPart:PARTSUPP)-[:PARTSUPP_SUPPLIER]->(supplier)
+MATCH (otherPart)-[:PARTSUPP_PART]->(product:PART)
+RETURN supplier.s_suppkey AS SupplierId,
+       product.p_partkey AS ProductId,
+       product.p_name AS ProductName
+ORDER BY SupplierId,ProductId;
+
+--30. Dintre primele 1000 produse inregistrate in sistem, afisati produsele furnizate de țări furnizoare ale produsului X
+MATCH (partX:PARTSUPP {ps_partkey: 1})-[:PARTSUPP_SUPPLIER]->(supplierX:SUPPLIER)
+MATCH (supplierX)-[:SUPPLIER_NATION]->(nationX:NATION)
+MATCH (otherPart:PARTSUPP)-[:PARTSUPP_SUPPLIER]->(supplier)
+MATCH (supplier)-[:SUPPLIER_NATION]->(nation:NATION)
+WHERE nation.n_nationkey = nationX.n_nationkey  
+MATCH (otherPart)-[:PARTSUPP_PART]->(product:PART)
+WHERE product.p_partkey<=1000
+RETURN supplier.s_suppkey AS SupplierId,
+       product.p_partkey AS ProductId,
+       product.p_name AS ProductName
+ORDER BY SupplierId, ProductId;
+
+--31. Dintre primii 1000 clienti inregistrati in sistem, afisati o lista cu toti aceia care provin din Europa, utilizand numele
+MATCH (c:CUSTOMER)-[:CUSTOMER_NATION]->(:NATION)-[:NATION_REGION]->(r:REGION)
+WHERE TRIM(r.r_name) = 'EUROPE' AND c.c_custkey <=1000
+WITH c.c_custkey AS cust_id, c.c_name AS customer_name
+ORDER BY cust_id
+WITH COLLECT({id: cust_id, name: customer_name}) AS customers
+RETURN REDUCE(s = 'All customers from EU: ', customer IN customers | s + customer.id + ', ') AS AllCustomersFromEU;
+
+--32. Dintre primii 1000 clienti inregistrati in sistem, afisati o lista cu toti aceia care provin din Europa, utilizand cheia unica
+MATCH (c:CUSTOMER)-[:CUSTOMER_NATION]->(:NATION)-[:NATION_REGION]->(r:REGION)
+WHERE r.r_regionkey = 3 AND c.c_custkey <=1000
+WITH c.c_custkey AS cust_id, c.c_name AS customer_name
+ORDER BY cust_id
+WITH COLLECT({id: cust_id, name: customer_name}) AS customers
+RETURN REDUCE(s = 'All customers from EU: ', customer IN customers | s + customer.id + ', ') AS AllCustomersFromEU;
+
+--33. Dintre primii 1500 clienti inregistrati in sistem, afisati o lista cu toti aceia care provin din Franta
+MATCH (c:CUSTOMER)-[:CUSTOMER_NATION]->(n:NATION)
+WHERE TRIM(n.n_name) = 'FRANCE' and c.c_custkey<=1500
+WITH c.c_custkey AS cust_id, c.c_name AS customer_name
+ORDER BY cust_id
+WITH COLLECT({id: cust_id, name: customer_name}) AS customers
+RETURN REDUCE(s = 'All customers from France: ', customer IN customers | s + customer.id + ', ') AS AllCustomersFromFrance;
+
+--34. Dintre primii 1000 clienti inregistrati in sistem, afisati o lista cu toti aceia care provin din Franta sau Germania
+MATCH (c:CUSTOMER)-[:CUSTOMER_NATION]->(n:NATION)
+WHERE (TRIM(n.n_name) = 'FRANCE' or TRIM(n.n_name) = 'GERMANY') AND c.c_custkey<=1000
+WITH c.c_custkey AS cust_id, c.c_name AS customer_name
+ORDER BY cust_id
+WITH COLLECT({id: cust_id, name: customer_name}) AS customers
+RETURN REDUCE(s = 'All customers from France or Germany: ', customer IN customers | s + customer.id + ', ') AS AllCustomersFromFranceANDGermany;
+
+--35. Dintre primii 1000 clienti inregistrati in sistem, afisati o lista cu toti aceia care provin din Brazil, Canada, Egypt
+MATCH (c:CUSTOMER)-[:CUSTOMER_NATION]->(n:NATION)
+WHERE (TRIM(n.n_name) = 'BRAZIL' or TRIM(n.n_name) = 'CANADA' or TRIM(n.n_name) = 'EGYPT') AND c.c_custkey<=1000
+WITH c.c_custkey AS cust_id, c.c_name AS customer_name
+ORDER BY cust_id
+WITH COLLECT({id: cust_id, name: customer_name}) AS customers
+RETURN REDUCE(s = 'All customers from Brazil, Canada, Egypt: ', customer IN customers | s + customer.id + ', ') AS Customers;
+
+--36. Dintre primii 1000 clienti inregistrati in sistem, afisati o lista cu toti aceia care provin din Brazil, Canada, Egypt, Iran
+MATCH (c:CUSTOMER)-[:CUSTOMER_NATION]->(n:NATION)
+WHERE (TRIM(n.n_name) = 'BRAZIL' or TRIM(n.n_name) = 'CANADA' or TRIM(n.n_name) = 'EGYPT' or TRIM(n.n_name) = 'IRAN') AND c.c_custkey<=1000
+WITH c.c_custkey AS cust_id, c.c_name AS customer_name
+ORDER BY cust_id
+WITH COLLECT({id: cust_id, name: customer_name}) AS customers
+RETURN REDUCE(s = 'All customers from Brazil, Canada, Egypt, Iran: ', customer IN customers | s + customer.id + ', ') AS Customers;
+
+--37. Dintre primii 1000 clienti inregistrati in sistem, afisati o lista cu toti aceia care provin din Brazil, Canada, Egypt, Iran folosing UPPER x 2
+MATCH (c:CUSTOMER)-[:CUSTOMER_NATION]->(n:NATION)
+WHERE (TOUPPER(TRIM(n.n_name)) = TOUPPER('Brazil') or TOUPPER(TRIM(n.n_name)) = TOUPPER('Canada') or TOUPPER(TRIM(n.n_name)) = TOUPPER('Egypt') or TOUPPER(TRIM(n.n_name)) = TOUPPER('Iran')) AND c.c_custkey<=1000
+WITH c.c_custkey AS cust_id, c.c_name AS customer_name
+ORDER BY cust_id
+WITH COLLECT({id: cust_id, name: customer_name}) AS customers
+RETURN REDUCE(s = 'All customers from Brazil, Canada, Egypt or Iran: ', customer IN customers | s + customer.id + ', ') AS Customers;
+
+--38. Dintre primii 1000 clienti inregistrati in sistem, afisati o lista cu toti aceia care provin din Brazil, Canada, Egypt, Iran folosing UPPER x 1
+MATCH (c:CUSTOMER)-[:CUSTOMER_NATION]->(n:NATION)
+WHERE (TOUPPER(TRIM(n.n_name)) = 'BRAZIL' or TOUPPER(TRIM(n.n_name)) = 'CANADA' or TOUPPER(TRIM(n.n_name)) = 'EGYPT' or TOUPPER(TRIM(n.n_name)) = 'IRAN')
+AND c.c_custkey<=1000
+WITH c.c_custkey AS cust_id, c.c_name AS customer_name
+ORDER BY cust_id
+WITH COLLECT({id: cust_id, name: customer_name}) AS customers
+RETURN REDUCE(s = 'All customers from Brazil, Canada, Egypt, Iran: ', customer IN customers | s + customer.id + ', ') AS Customers;
+
+--39. Dintre primele 1000 comenzi inregistrate in sistem, afisati lista comenzilor cu aceiași prioritate (o_orderpriority) ca și comanda X(66)
+MATCH (targetOrder:ORDERS {o_orderkey: 66})
+MATCH (ordersWithSamePriority:ORDERS{o_orderpriority: targetOrder.o_orderpriority})
+WHERE ordersWithSamePriority.o_orderkey<=1000
+WITH COLLECT(ordersWithSamePriority.o_orderkey) AS ordersWithSamePriorityList
+RETURN REDUCE(s = 'Orders with same priority: ', orderKey IN ordersWithSamePriorityList | s + orderKey + ', ') AS OrdersWithSamePriority;
+
+--40. Dintre primele 1000 comenzi inregistrate in sistem, afisati lista cu toate comenzile care au o medie a discountului egala cu media comenzii X
+MATCH (li1:LINEITEM)
+WHERE li1.l_orderkey = 1
+WITH AVG(li1.l_discount) AS avg_discount_order1
+MATCH (li:LINEITEM)
+WHERE li.l_orderkey<=1000
+WITH li.l_orderkey AS order_key, AVG(li.l_discount) AS avg_discount_all, avg_discount_order1
+WHERE ROUND(avg_discount_all * 100) / 100 = ROUND(avg_discount_order1 * 100) / 100
+WITH order_key
+ORDER BY order_key
+WITH COLLECT(order_key) AS ordersWithSameAVGdiscount
+RETURN 'All orders: ' + REDUCE(s = '', orderKey IN ordersWithSameAVGdiscount | s + orderKey + ',') AS ordersWithSameAVGdiscount;
+
+--41. Dintre primele 1000 comenzi inregistrate in sistem, afisati lista cu toate comenzile care au o medie a discountului mai mica sau egala cu media comenzii X
+MATCH (li1:LINEITEM)
+WHERE li1.l_orderkey = 32802
+WITH AVG(li1.l_discount) AS avg_discount_order1
+MATCH (li:LINEITEM)
+WHERE li.l_orderkey<=1000
+WITH li.l_orderkey AS order_key, AVG(li.l_discount) AS avg_discount_all, avg_discount_order1
+WHERE ROUND(avg_discount_all * 100) / 100 <= ROUND(avg_discount_order1 * 100) / 100
+WITH order_key
+ORDER BY order_key
+WITH COLLECT(order_key) AS ordersWithSameAVGdiscount
+RETURN 'All orders: ' + REDUCE(s = '', orderKey IN ordersWithSameAVGdiscount | s + orderKey + ',') AS orders;
+
+--42. Afisarea listei cu toate comenzile care au o medie a cantitatii egala cu media comenzii X
+MATCH (li1:LINEITEM)
+WHERE li1.l_orderkey = 1
+WITH AVG(li1.l_quantity) AS avg_qty_order1
+MATCH (li:LINEITEM)
+WITH li.l_orderkey AS order_key, AVG(li.l_quantity) AS avg_qty_all, avg_qty_order1
+WHERE ROUND(avg_qty_all * 100) / 100 = ROUND(avg_qty_order1 * 100) / 100
+WITH order_key
+ORDER BY order_key
+WITH COLLECT(order_key) AS ordersWithSameAVGqty
+RETURN 'All orders: ' + REDUCE(s = '', orderKey IN ordersWithSameAVGqty | s + orderKey + ',') AS orders;
+
+--43. Dintre primele 2000 comenzi inregistrate in sistem, afisati lista cu toate comenzile care au un numar de produse egal cu al comenzii X
+MATCH (li1:LINEITEM)
+WHERE li1.l_orderkey = 1
+WITH SUM(li1.l_quantity) AS sum_qty_order1
+MATCH (li:LINEITEM)
+WHERE li.l_orderkey<=2000
+WITH li.l_orderkey AS order_key, SUM(li.l_quantity) AS sum_qty_all, sum_qty_order1
+WHERE sum_qty_all= sum_qty_order1
+WITH order_key
+ORDER BY order_key
+WITH COLLECT(order_key) AS ordersWithSameSUMqty
+RETURN 'All orders: ' + REDUCE(s = '', orderKey IN ordersWithSameSUMqty | s + orderKey + ',') AS orders;
+
+--44. Afisarea listei cu toate comenzile clientului X care au un numar de produse egal cu al comenzii X
+MATCH (li1:LINEITEM)
+WHERE li1.l_orderkey = 1 
+WITH SUM(li1.l_quantity) AS sum_qty_order1
+MATCH (li:LINEITEM)-[:LINEITEM_ORDERS]->(o:ORDERS)
+WITH li.l_orderkey AS order_key, SUM(li.l_quantity) AS sum_qty_all, sum_qty_order1, o.o_custkey as custkey
+WHERE sum_qty_all= sum_qty_order1 and custkey = 370
+WITH order_key
+ORDER BY order_key
+WITH COLLECT(order_key) AS ordersWithSameSUMqty
+RETURN 'All orders: ' + REDUCE(s = '', orderKey IN ordersWithSameSUMqty | s + orderKey + ',') AS orders;
+
+--45. Dintre primele 5000 comenzi inregistrate in sistem, afisati lista cu toate comenzile care au un numar de produse egal cu al comenzii X si acelasi order status
+MATCH (li1:LINEITEM)-[:LINEITEM_ORDERS]->(o1:ORDERS)
+WHERE li1.l_orderkey = 1 
+WITH SUM(li1.l_quantity) AS sum_qty_order1, o1.o_orderstatus AS orderStatus_1
+MATCH (li:LINEITEM)-[:LINEITEM_ORDERS]->(o:ORDERS)
+WHERE li.l_orderkey<=5000
+WITH li.l_orderkey AS order_key, SUM(li.l_quantity) AS sum_qty_all, o.o_orderstatus AS orderStatus,
+     sum_qty_order1, orderStatus_1
+WHERE sum_qty_all = sum_qty_order1 AND orderStatus = orderStatus_1
+WITH order_key
+ORDER BY order_key
+WITH COLLECT(order_key) AS ordersWithSameSUMqty
+RETURN 'All orders: ' + REDUCE(s = '', orderKey IN ordersWithSameSUMqty | s + orderKey + ',') AS orders;
+
+--46. Afisarea listei cu toate comenzile care au un numar de produse egal cu al comenzii X si acelasi order status, respectiv order priority
+MATCH (li1:LINEITEM)-[:LINEITEM_ORDERS]->(o1:ORDERS)
+WHERE li1.l_orderkey = 1 
+WITH SUM(li1.l_quantity) AS sum_qty_order1, o1.o_orderstatus AS orderStatus_1, o1.o_orderpriority AS orderPriority_1
+MATCH (li:LINEITEM)-[:LINEITEM_ORDERS]->(o:ORDERS)
+WITH li.l_orderkey AS order_key, SUM(li.l_quantity) AS sum_qty_all, o.o_orderstatus AS orderStatus, o.o_orderpriority AS orderPriority,
+     sum_qty_order1, orderStatus_1, orderPriority_1
+WHERE sum_qty_all = sum_qty_order1 AND orderStatus = orderStatus_1 AND orderPriority = orderPriority_1
+WITH order_key
+ORDER BY order_key
+WITH COLLECT(order_key) AS ordersWithSameSUMqty
+RETURN 'All orders: ' + REDUCE(s = '', orderKey IN ordersWithSameSUMqty | s + orderKey + ',') AS orders;
+
+--47. Afisarea listei cu toate comenzile care au un numar de produse egal cu al comenzii X si acelasi order status, order priority, order clerk
+MATCH (li1:LINEITEM)-[:LINEITEM_ORDERS]->(o1:ORDERS)
+WHERE li1.l_orderkey = 1 
+WITH SUM(li1.l_quantity) AS sum_qty_order1, o1.o_orderstatus AS orderStatus_1, o1.o_orderpriority AS orderPriority_1, o1.o_clerk AS clerk_1
+MATCH (li:LINEITEM)-[:LINEITEM_ORDERS]->(o:ORDERS)
+WITH li.l_orderkey AS order_key, SUM(li.l_quantity) AS sum_qty_all, o.o_orderstatus AS orderStatus, o.o_orderpriority AS orderPriority,
+     o.o_clerk AS clerk, sum_qty_order1, orderStatus_1, orderPriority_1, clerk_1
+WHERE sum_qty_all = sum_qty_order1 AND orderStatus = orderStatus_1 AND orderPriority = orderPriority_1 AND clerk = clerk_1
+WITH order_key
+ORDER BY order_key
+WITH COLLECT(order_key) AS ordersWithSameSUMqty
+RETURN 'All orders: ' + REDUCE(s = '', orderKey IN ordersWithSameSUMqty | s + orderKey + ',') AS orders;
+
+--48. Lista tuturor produselor vândute per comanda pentru toti clientii.
+MATCH (l:LINEITEM)-[:LINEITEM_ORDERS]->(o:ORDERS)
+MATCH (ps:PARTSUPP)-[:PARTSUPP_PART]->(p:PART)
+WHERE l.l_partkey = ps.ps_partkey
+RETURN o.o_orderkey AS OrderId, COLLECT(DISTINCT TRIM(p.p_name)) AS lines_list
+ORDER BY OrderId
+LIMIT 1000;
+
+--49. Lista tuturor produselor vândute per comanda pentru client X (Client:1036).
+MATCH (l:LINEITEM)-[:LINEITEM_ORDERS]->(o:ORDERS)
+MATCH (ps:PARTSUPP)-[:PARTSUPP_PART]->(p:PART)
+WHERE l.l_partkey = ps.ps_partkey AND o.o_custkey=1036
+RETURN o.o_orderkey AS OrderId, COLLECT(DISTINCT TRIM(p.p_name)) AS lines_list
+ORDER BY OrderId
+LIMIT 1000;
+
+--50. Lista tuturor produselor vândute per comanda pentru clientul X si Y.
+MATCH (l:LINEITEM)-[:LINEITEM_ORDERS]->(o:ORDERS)
+MATCH (ps:PARTSUPP)-[:PARTSUPP_PART]->(p:PART)
+WHERE l.l_partkey = ps.ps_partkey AND (o.o_custkey=1036 OR o.o_custkey=1037)
+RETURN o.o_orderkey AS OrderId, COLLECT(DISTINCT TRIM(p.p_name)) AS lines_list
+ORDER BY OrderId
+LIMIT 1000;
+
+--51. Lista tuturor produselor vândute per comanda pentru clientul X,Y si Z.
+MATCH (l:LINEITEM)-[:LINEITEM_ORDERS]->(o:ORDERS)
+MATCH (ps:PARTSUPP)-[:PARTSUPP_PART]->(p:PART)
+WHERE l.l_partkey = ps.ps_partkey AND (o.o_custkey=1036 OR o.o_custkey=1037 OR o.o_custkey=1039)
+RETURN o.o_orderkey AS OrderId, COLLECT(DISTINCT TRIM(p.p_name)) AS lines_list
+ORDER BY OrderId
+LIMIT 1000;
+
+--52. Lista produselor vândute, pentru comanda X (comanda 20199).
+MATCH (l:LINEITEM)-[:LINEITEM_ORDERS]->(o:ORDERS)
+MATCH (ps:PARTSUPP)-[:PARTSUPP_PART]->(p:PART)
+WHERE l.l_partkey = ps.ps_partkey AND o.o_orderkey=20199
+RETURN o.o_orderkey AS OrderId,o.o_orderstatus AS OrderStatus ,o.o_totalprice AS OrderTotal, TRIM(o.o_orderpriority) AS OrderPriority, o.o_custkey AS CustomerId, COLLECT(DISTINCT TRIM(p.p_name)) AS lines_list
+ORDER BY OrderId;
+
+--53. Lista produselor vândute, pentru comanda X si Y.
+MATCH (l:LINEITEM)-[:LINEITEM_ORDERS]->(o:ORDERS)
+MATCH (ps:PARTSUPP)-[:PARTSUPP_PART]->(p:PART)
+WHERE l.l_partkey = ps.ps_partkey AND (o.o_orderkey=20198 OR o.o_orderkey=20199)
+RETURN o.o_orderkey AS OrderId,o.o_orderstatus AS OrderStatus ,o.o_totalprice AS OrderTotal, TRIM(o.o_orderpriority) AS OrderPriority, o.o_custkey AS CustomerId, COLLECT(DISTINCT TRIM(p.p_name)) AS lines_list
+ORDER BY OrderId;
+
+--54. Lista produselor vândute, pentru comanda X, Y si Z.
+MATCH (l:LINEITEM)-[:LINEITEM_ORDERS]->(o:ORDERS)
+MATCH (ps:PARTSUPP)-[:PARTSUPP_PART]->(p:PART)
+WHERE l.l_partkey = ps.ps_partkey AND (o.o_orderkey=20197 OR o.o_orderkey=20198 OR o.o_orderkey=20199)
+RETURN o.o_orderkey AS OrderId,o.o_orderstatus AS OrderStatus ,o.o_totalprice AS OrderTotal, TRIM(o.o_orderpriority) AS OrderPriority, o.o_custkey AS CustomerId, COLLECT(DISTINCT TRIM(p.p_name)) AS lines_list
+ORDER BY OrderId;
+
+--55. Lista produselor vândute pe comanda, pentru anul 1996
+MATCH (l:LINEITEM)-[:LINEITEM_ORDERS]->(o:ORDERS)
+MATCH (ps:PARTSUPP)-[:PARTSUPP_PART]->(p:PART)
+WHERE l.l_partkey = ps.ps_partkey AND  date(o.o_orderdate).year = 1996
+RETURN o.o_orderkey AS OrderId,o.o_orderstatus AS OrderStatus ,o.o_totalprice AS OrderTotal, o.o_orderdate AS OrderDate, o.o_custkey AS CustomerId, COLLECT(DISTINCT TRIM(p.p_name)) AS lines_list
+ORDER BY OrderId
+LIMIT 1000;
+
+--56. Lista produselor vândute pe comanda, pentru anul 1996 sau 1995
+MATCH (l:LINEITEM)-[:LINEITEM_ORDERS]->(o:ORDERS)
+MATCH (ps:PARTSUPP)-[:PARTSUPP_PART]->(p:PART)
+WHERE l.l_partkey = ps.ps_partkey AND (date(o.o_orderdate).year = 1996 or date(o.o_orderdate).year = 1995)
+RETURN o.o_orderkey AS OrderId,o.o_orderstatus AS OrderStatus ,o.o_totalprice AS OrderTotal, o.o_orderdate AS OrderDate, o.o_custkey AS CustomerId, COLLECT(DISTINCT TRIM(p.p_name)) AS lines_list
+ORDER BY OrderId
+LIMIT 1000;
+
+--57. Lista produselor vândute pe comanda, pentru anul 1996/1995/1992
+MATCH (l:LINEITEM)-[:LINEITEM_ORDERS]->(o:ORDERS)
+MATCH (ps:PARTSUPP)-[:PARTSUPP_PART]->(p:PART)
+WHERE l.l_partkey = ps.ps_partkey AND (date(o.o_orderdate).year = 1996 or date(o.o_orderdate).year = 1995 or date(o.o_orderdate).year = 1992)
+RETURN o.o_orderkey AS OrderId,o.o_orderstatus AS OrderStatus ,o.o_totalprice AS OrderTotal, o.o_orderdate AS OrderDate, o.o_custkey AS CustomerId, COLLECT(DISTINCT TRIM(p.p_name)) AS lines_list
+ORDER BY OrderId
+LIMIT 1000;
+
+--58. Lista produselor vândute pe comanda, pentru anul 1996 si clientul cu id-ul 370
+MATCH (l:LINEITEM)-[:LINEITEM_ORDERS]->(o:ORDERS)
+MATCH (ps:PARTSUPP)-[:PARTSUPP_PART]->(p:PART)
+WHERE l.l_partkey = ps.ps_partkey AND date(o.o_orderdate).year = 1996 AND o.o_custkey=370
+RETURN o.o_orderkey AS OrderId,o.o_orderstatus AS OrderStatus ,o.o_totalprice AS OrderTotal, o.o_orderdate AS OrderDate, o.o_custkey AS CustomerId, COLLECT(DISTINCT TRIM(p.p_name)) AS lines_list
+ORDER BY OrderId;
+
+--59. Lista produselor vândute pe comanda, pentru anul 1996/1995 si clientul cu id-ul 370
+MATCH (l:LINEITEM)-[:LINEITEM_ORDERS]->(o:ORDERS)
+MATCH (ps:PARTSUPP)-[:PARTSUPP_PART]->(p:PART)
+WHERE l.l_partkey = ps.ps_partkey 
+AND (date(o.o_orderdate).year = 1996 or date(o.o_orderdate).year = 1995)
+AND o.o_custkey=370
+RETURN o.o_orderkey AS OrderId,o.o_orderstatus AS OrderStatus ,o.o_totalprice AS OrderTotal, o.o_orderdate AS OrderDate, o.o_custkey AS CustomerId, COLLECT(DISTINCT TRIM(p.p_name)) AS lines_list
+ORDER BY OrderId;
+
+--60. Lista produselor vândute pe comanda, pentru anul 1996/1995 si clientul cu id-ul 370/781
+MATCH (l:LINEITEM)-[:LINEITEM_ORDERS]->(o:ORDERS)
+MATCH (ps:PARTSUPP)-[:PARTSUPP_PART]->(p:PART)
+WHERE l.l_partkey = ps.ps_partkey 
+AND (date(o.o_orderdate).year = 1996 or date(o.o_orderdate).year = 1995)
+AND (o.o_custkey = 370 OR o.o_custkey = 781)
+RETURN o.o_orderkey AS OrderId,o.o_orderstatus AS OrderStatus ,o.o_totalprice AS OrderTotal, o.o_orderdate AS OrderDate, o.o_custkey AS CustomerId, COLLECT(DISTINCT TRIM(p.p_name)) AS lines_list
+ORDER BY OrderId;
+
+--61. Lista produselor vândute pe comanda, pentru anul 1996/1995/1992 si clientul cu id-ul 370/781/557
+MATCH (l:LINEITEM)-[:LINEITEM_ORDERS]->(o:ORDERS)
+MATCH (ps:PARTSUPP)-[:PARTSUPP_PART]->(p:PART)
+WHERE l.l_partkey = ps.ps_partkey 
+AND (date(o.o_orderdate).year = 1996 or date(o.o_orderdate).year = 1995 or date(o.o_orderdate).year = 1992)
+AND (o.o_custkey = 370 OR o.o_custkey = 781 OR o.o_custkey = 557)
+RETURN o.o_orderkey AS OrderId,o.o_orderstatus AS OrderStatus ,o.o_totalprice AS OrderTotal, o.o_orderdate AS OrderDate, o.o_custkey AS CustomerId, COLLECT(DISTINCT TRIM(p.p_name)) AS lines_list
+ORDER BY OrderId;
+
+--62. Lista produselor vândute pe comanda, pentru anul 1996/1995/1992 si clientul cu id-ul 370/781/557 (utilizand clauza IN)
+MATCH (l:LINEITEM)-[:LINEITEM_ORDERS]->(o:ORDERS)
+MATCH (ps:PARTSUPP)-[:PARTSUPP_PART]->(p:PART)
+WHERE l.l_partkey = ps.ps_partkey 
+AND date(o.o_orderdate).year IN [1996,1995,1992]
+AND o.o_custkey IN [370,781,557]
+RETURN o.o_orderkey AS OrderId,o.o_orderstatus AS OrderStatus ,o.o_totalprice AS OrderTotal, o.o_orderdate AS OrderDate, o.o_custkey AS CustomerId, COLLECT(DISTINCT TRIM(p.p_name)) AS lines_list
+ORDER BY OrderId;
+
+--63. Lista produselor vândute pe comanda, pentru luna iunie
+MATCH (l:LINEITEM)-[:LINEITEM_ORDERS]->(o:ORDERS)
+MATCH (ps:PARTSUPP)-[:PARTSUPP_PART]->(p:PART)
+WHERE l.l_partkey = ps.ps_partkey 
+AND date(o.o_orderdate).MONTH = 6
+RETURN o.o_orderkey AS OrderId,o.o_orderstatus AS OrderStatus ,o.o_totalprice AS OrderTotal, o.o_orderdate AS OrderDate, o.o_custkey AS CustomerId, COLLECT(DISTINCT TRIM(p.p_name)) AS lines_list
+ORDER BY OrderId
+LIMIT 1000;
+
+--64. Lista produselor vândute pe comanda, pentru luna iunie a tuturor anilor cuprinsi intre 1995 si 2000
+MATCH (l:LINEITEM)-[:LINEITEM_ORDERS]->(o:ORDERS)
+MATCH (ps:PARTSUPP)-[:PARTSUPP_PART]->(p:PART)
+WHERE l.l_partkey = ps.ps_partkey 
+AND date(o.o_orderdate).MONTH = 6
+AND date(o.o_orderdate).year >= 1995 AND date(o.o_orderdate).year <= 2000
+RETURN o.o_orderkey AS OrderId,o.o_orderstatus AS OrderStatus ,o.o_totalprice AS OrderTotal, o.o_orderdate AS OrderDate, o.o_custkey AS CustomerId, COLLECT(DISTINCT TRIM(p.p_name)) AS lines_list
+ORDER BY OrderId
+LIMIT 1000;
+
+--65. Lista produselor vândute pe comanda, in perioada 01.1996-08.1996
+MATCH (l:LINEITEM)-[:LINEITEM_ORDERS]->(o:ORDERS)
+MATCH (ps:PARTSUPP)-[:PARTSUPP_PART]->(p:PART)
+WHERE l.l_partkey = ps.ps_partkey 
+AND date(o.o_orderdate).MONTH >= 1
+AND date(o.o_orderdate).MONTH <= 8
+AND date(o.o_orderdate).year = 1996
+RETURN o.o_orderkey AS OrderId,o.o_orderstatus AS OrderStatus ,o.o_totalprice AS OrderTotal, o.o_orderdate AS OrderDate, o.o_custkey AS CustomerId, COLLECT(DISTINCT TRIM(p.p_name)) AS lines_list
+ORDER BY OrderId
+ORDER BY OrderId
+LIMIT 1000;
+
+--66. Lista produselor vândute pe comanda, in perioada prima zi a anului
+MATCH (l:LINEITEM)-[:LINEITEM_ORDERS]->(o:ORDERS)
+MATCH (ps:PARTSUPP)-[:PARTSUPP_PART]->(p:PART)
+WHERE l.l_partkey = ps.ps_partkey AND date(o.o_orderdate).month = 1 AND date(o.o_orderdate).day = 1
+RETURN o.o_orderkey AS OrderId,o.o_orderstatus AS OrderStatus ,o.o_totalprice AS OrderTotal, o.o_orderdate AS OrderDate, o.o_custkey AS CustomerId, COLLECT(DISTINCT TRIM(p.p_name)) AS lines_list
+ORDER BY OrderId
+LIMIT 1000;
+
+--67. Lista produselor vândute pe comanda, care sunt in statusul o si au o valoare cuprinsa intre 100-300 mii
+MATCH (l:LINEITEM)-[:LINEITEM_ORDERS]->(o:ORDERS)
+MATCH (ps:PARTSUPP)-[:PARTSUPP_PART]->(p:PART)
+WHERE l.l_partkey = ps.ps_partkey 
+AND o.o_orderstatus = 'O' 
+AND o.o_totalprice >= 100000 AND o.o_totalprice <= 300000
+RETURN o.o_orderkey AS OrderId,o.o_orderstatus AS OrderStatus ,o.o_totalprice AS OrderTotal, o.o_orderdate AS OrderDate, o.o_custkey AS CustomerId, COLLECT(DISTINCT TRIM(p.p_name)) AS lines_list
+ORDER BY OrderId
+LIMIT 1000;
+
+--68. Afisarea unei liste cu primele 1000 comenzi, per client
+MATCH (o:ORDERS)-[:ORDERS_CUSTOMER]->(c:CUSTOMER)
+WHERE o.o_orderkey<=1000
+WITH c, COLLECT(DISTINCT o.o_orderkey) AS orderKeys
+RETURN c.c_custkey AS customerId, apoc.coll.sort(orderKeys) AS orders_list
+ORDER BY customerId
+LIMIT 1000;
+
+--69. Afisarea unei liste cu toate comenzile care au un id <=2000 ale clientului cu id-ul 10
+MATCH (o:ORDERS)-[:ORDERS_CUSTOMER]->(c:CUSTOMER)
+WHERE c.c_custkey = 10 AND o.o_orderkey<=2000
+WITH DISTINCT o.o_orderkey AS orderKey
+ORDER BY orderKey
+WITH COLLECT(orderKey) AS ordersWithSameCustomer
+RETURN REDUCE(s = 'All orders for customer with id 10: ', orderKey IN ordersWithSameCustomer | s + orderKey + ', ') AS OrdersWithSameCustomer;
+
+--70. Afisarea unei liste cu toate comenzile care au un id <=2000 ale clientilor cu id-ul 4, 10
+MATCH (o:ORDERS)-[:ORDERS_CUSTOMER]->(c:CUSTOMER)
+WHERE (c.c_custkey = 4 OR c.c_custkey = 10) AND o.o_orderkey<=2000
+WITH DISTINCT c.c_custkey AS customerKey, o.o_orderkey AS orderKey
+ORDER BY customerKey, orderKey
+WITH customerKey, COLLECT(orderKey) AS ordersWithSameCustomer
+RETURN 'All orders for customer with id ' + customerKey + ': ' + REDUCE(s = '', orderKey IN ordersWithSameCustomer | s + orderKey + ', ') AS OrdersWithSameCustomer;
+
+--71. Afisarea unei liste cu toate comenzile care au un id <=2000 ale clientilor cu id-ul 4, 10, 370
+MATCH (o:ORDERS)-[:ORDERS_CUSTOMER]->(c:CUSTOMER)
+WHERE (c.c_custkey = 4 OR c.c_custkey = 10 OR c.c_custkey = 370) AND o.o_orderkey<=2000
+WITH DISTINCT c.c_custkey AS customerKey, o.o_orderkey AS orderKey
+ORDER BY customerKey, orderKey
+WITH customerKey, COLLECT(orderKey) AS ordersWithSameCustomer
+RETURN 'All orders for customer with id ' + customerKey + ': ' + REDUCE(s = '', orderKey IN ordersWithSameCustomer | s + orderKey + ', ') AS OrdersWithSameCustomer;
+
+--72. Afisarea unei liste cu toate comenzile care au un id <=1000 ale clientilor cu id-ul 286, 322, 568, 818, 862
+MATCH (o:ORDERS)-[:ORDERS_CUSTOMER]->(c:CUSTOMER)
+WHERE (c.c_custkey = 286 OR c.c_custkey = 322 OR c.c_custkey = 568 OR c.c_custkey = 818 OR c.c_custkey = 862) AND o.o_orderkey<=1000
+WITH DISTINCT c.c_custkey AS customerKey, o.o_orderkey AS orderKey
+ORDER BY customerKey, orderKey
+WITH customerKey, COLLECT(orderKey) AS ordersWithSameCustomer
+RETURN 'All orders for customer with id ' + customerKey + ': ' + REDUCE(s = '', orderKey IN ordersWithSameCustomer | s + orderKey + ', ') AS OrdersWithSameCustomer;
+
+--73. Afisarea unei liste cu toate comenzile care au un id <=1000 ale clientilor cu id-ul cuprins intre [100,150]
+MATCH (o:ORDERS)-[:ORDERS_CUSTOMER]->(c:CUSTOMER)
+WHERE c.c_custkey >= 100 AND c.c_custkey <=150 AND o.o_orderkey<=1000
+WITH DISTINCT c.c_custkey AS customerKey, o.o_orderkey AS orderKey
+ORDER BY customerKey, orderKey
+WITH customerKey, COLLECT(orderKey) AS ordersWithSameCustomer
+RETURN 'All orders for customer with id ' + customerKey + ': ' + REDUCE(s = '', orderKey IN ordersWithSameCustomer | s + orderKey + ', ') AS OrdersWithSameCustomer;
+
+--74. Afisarea unei liste cu toate comenzile care au un id <=1000 ale clientilor cu id-ul cuprins intre [100,150] sau intre [200,250]
+MATCH (o:ORDERS)-[:ORDERS_CUSTOMER]->(c:CUSTOMER)
+WHERE ((c.c_custkey >= 100 AND c.c_custkey <=150) OR (c.c_custkey >= 200 AND c.c_custkey <=250)) AND o.o_orderkey<=1000
+WITH DISTINCT c.c_custkey AS customerKey, o.o_orderkey AS orderKey
+ORDER BY customerKey, orderKey
+WITH customerKey, COLLECT(orderKey) AS ordersWithSameCustomer
+RETURN 'All orders for customer with id ' + customerKey + ': ' + REDUCE(s = '', orderKey IN ordersWithSameCustomer | s + orderKey+'; ') AS OrdersWithSameCustomer;
+
+--75. Afisarea unei liste cu toate comenzile care au un id <=1500 ale clientului cu id-ul 445 ce au fost plasate in anul 1994
+MATCH (o:ORDERS)-[:ORDERS_CUSTOMER]->(c:CUSTOMER)
+WHERE c.c_custkey = 445 AND  date(o.o_orderdate).year = 1994 AND o.o_orderkey<=1500
+WITH DISTINCT o.o_orderkey AS orderKey
+ORDER BY orderKey
+WITH COLLECT(orderKey) AS ordersWithSameCustomer
+RETURN REDUCE(s = 'All orders for customer with id 445: ', orderKey IN ordersWithSameCustomer | s + orderKey + ', ') AS Orders;
+
+--76. Afisarea unei liste cu toate comenzile care au un id <=1600 ale clientului cu id-ul 19 care au fost plasate intre anii 1990 si 2000
+MATCH (o:ORDERS)-[:ORDERS_CUSTOMER]->(c:CUSTOMER)
+WHERE c.c_custkey = 19 AND date(o.o_orderdate).year >= 1990 AND date(o.o_orderdate).year <= 2000 AND o.o_orderkey<=1600
+WITH DISTINCT o.o_orderkey AS orderKey
+ORDER BY orderKey
+WITH COLLECT(orderKey) AS ordersWithSameCustomer
+RETURN REDUCE(s = 'All orders for customer with id 19: ', orderKey IN ordersWithSameCustomer | s + orderKey + ', ') AS Orders;
+
+--77. Afisarea unei liste cu toate comenzile care au un id <=2000 ale clientului cu id-ul 352 care au fost plasate in perioada [01.1992;08.1992]
+MATCH (o:ORDERS)-[:ORDERS_CUSTOMER]->(c:CUSTOMER)
+WHERE c.c_custkey = 352 AND date(o.o_orderdate).year = 1992 AND date(o.o_orderdate).month >=1 AND date(o.o_orderdate).month <=8 AND o.o_orderkey<=2000
+WITH DISTINCT o.o_orderkey AS orderKey
+ORDER BY orderKey
+WITH COLLECT(orderKey) AS ordersWithSameCustomer
+RETURN REDUCE(s = 'All orders for customer with id 352: ', orderKey IN ordersWithSameCustomer | s + orderKey + ', ') AS Orders;
+
+--78. Afisarea unei liste cu toate comenzile care au un id <=2000 ale clientului cu id-ul 352 care au fost plasate in luna a 2-a
+MATCH (o:ORDERS)-[:ORDERS_CUSTOMER]->(c:CUSTOMER)
+WHERE c.c_custkey = 352 AND date(o.o_orderdate).month = 2 AND o.o_orderkey <= 2000
+WITH DISTINCT o.o_orderkey AS orderKey
+ORDER BY orderKey
+WITH COLLECT(orderKey) AS ordersWithSameCustomer
+RETURN REDUCE(s = 'All orders for customer with id 352: ', orderKey IN ordersWithSameCustomer | s + orderKey + ', ') AS Orders;
+
+--79. Afisarea unei liste cu toate comenzile care au un id <=2000 ale clientului cu id-ul 62 care au fost plasate in prima zi a lunii
+MATCH (o:ORDERS)-[:ORDERS_CUSTOMER]->(c:CUSTOMER)
+WHERE c.c_custkey = 62 AND date(o.o_orderdate).day=1 AND o.o_orderkey<=2000
+WITH DISTINCT o.o_orderkey AS orderKey
+ORDER BY orderKey
+WITH COLLECT(orderKey) AS ordersWithSameCustomer
+RETURN REDUCE(s = 'All orders for customer with id 62: ', orderKey IN ordersWithSameCustomer | s + orderKey + ', ') AS Orders;
+
+--80. Afisarea unei liste cu toate comenzile clientului cu id-ul 391 care au fost plasate in prima zi a lunii ianuarie
+MATCH (o:ORDERS)-[:ORDERS_CUSTOMER]->(c:CUSTOMER)
+WHERE c.c_custkey = 391 AND date(o.o_orderdate).day=1 AND date(o.o_orderdate).month=1
+WITH DISTINCT o.o_orderkey AS orderKey
+ORDER BY orderKey
+WITH COLLECT(orderKey) AS ordersWithSameCustomer
+RETURN REDUCE(s = 'All orders for customer with id 391: ', orderKey IN ordersWithSameCustomer | s + orderKey + ', ') AS Orders;
+
+--81. Afisarea unei liste cu toate comenzile clientului cu id-ul 464 care au fost plasate in cea de-a doua zi a lunii februarie 1998
+MATCH (o:ORDERS)-[:ORDERS_CUSTOMER]->(c:CUSTOMER)
+WHERE c.c_custkey = 464 AND date(o.o_orderdate).day=2 AND date(o.o_orderdate).month=2 AND date(o.o_orderdate).year=1998
+WITH DISTINCT o.o_orderkey AS orderKey
+ORDER BY orderKey
+WITH COLLECT(orderKey) AS ordersWithSameCustomer
+RETURN REDUCE(s = 'All orders for customer with id 464: ', orderKey IN ordersWithSameCustomer | s + orderKey + ', ') AS Orders;
+
+--82. Afisarea unei liste cu toate comenzile care au un id <=2000 ale clientului cu id-ul 685 care au fost plasate in prima saptamana a lunii ianuarie 
+MATCH (o:ORDERS)-[:ORDERS_CUSTOMER]->(c:CUSTOMER)
+WHERE c.c_custkey = 685 AND date(o.o_orderdate).month=1
+AND date(o.o_orderdate).day>=1 AND date(o.o_orderdate).day<=7
+AND o.o_orderkey<=2000
+WITH DISTINCT o.o_orderkey AS orderKey
+ORDER BY orderKey
+WITH COLLECT(orderKey) AS ordersWithSameCustomer
+RETURN REDUCE(s = 'All orders for customer with id 685: ', orderKey IN ordersWithSameCustomer | s + orderKey + ', ') AS Orders;
+
+--83. Afisarea unei liste cu toate comenzile care au un id <=2000 ale clientului cu id-ul 685 care au fost plasate in perioada [06.1992;12.1992] sau in perioada [01.1994;06.1994]
+MATCH (o:ORDERS)-[:ORDERS_CUSTOMER]->(c:CUSTOMER)
+WHERE c.c_custkey = 685 AND o.o_orderkey<=2000 AND 
+((date(o.o_orderdate).year = 1992 AND date(o.o_orderdate).month >=6 AND date(o.o_orderdate).month <=12) OR
+(date(o.o_orderdate).year = 1994 AND date(o.o_orderdate).month >=1 AND date(o.o_orderdate).month <=6))
+WITH DISTINCT o.o_orderkey AS orderKey
+ORDER BY orderKey
+WITH COLLECT(orderKey) AS ordersWithSameCustomer
+RETURN REDUCE(s = 'All orders for customer with id 685: ', orderKey IN ordersWithSameCustomer | s + orderKey + ', ') AS Orders;
+
+--84. Afisarea unei liste cu toate comenzile care au un id <=1000 ale clientilor ce poarta numele de xxx (de ex cadou de Sf Andrei, etc)
+MATCH (o:ORDERS)-[:ORDERS_CUSTOMER]->(c:CUSTOMER)
+WHERE c.c_name =~ '.*001.*' AND o.o_orderkey<=1000
+WITH c.c_custkey AS customerId, c.c_name AS customerName, COLLECT(DISTINCT o.o_orderkey) AS orderKeys
+RETURN customerId, customerName, apoc.coll.sort(orderKeys) AS orders_list
+ORDER BY customerId
+LIMIT 1000;
+
+--85. Afisarea unei liste cu toate comenzile care au un id <=1000 ale clientilor ce poarta numele de xxx sau yyy
+MATCH (o:ORDERS)-[:ORDERS_CUSTOMER]->(c:CUSTOMER)
+WHERE (c.c_name =~ '.*001.*' OR c.c_name =~ '.*002.*') AND o.o_orderkey<=1000
+WITH c.c_custkey AS customerId, c.c_name AS customerName, COLLECT(DISTINCT o.o_orderkey) AS orderKeys
+RETURN customerId, customerName, apoc.coll.sort(orderKeys) AS orders_list
+ORDER BY customerId
+LIMIT 1000;
+
+--86. Afisarea unei liste cu toate comenzile care au un id <=1000 ale clientilor de natiune japoneza
+MATCH (c:CUSTOMER)-[:CUSTOMER_NATION]->(n:NATION)
+WHERE TOUPPER(TRIM(n.n_name)) = 'JAPAN' 
+MATCH (o:ORDERS)-[:ORDERS_CUSTOMER]->(c:CUSTOMER)
+WHERE o.o_orderkey<=1000
+WITH c.c_custkey AS customerId, c.c_name AS customerName, COLLECT(DISTINCT o.o_orderkey) AS orderKeys
+RETURN customerId, customerName, apoc.coll.sort(orderKeys) AS orders_list
+ORDER BY customerId
+LIMIT 1000;
+
+--87. Afisarea unei liste cu toate comenzile care au un id <=1000 ale clientilor de natiune franceza sau germana
+MATCH (c:CUSTOMER)-[:CUSTOMER_NATION]->(n:NATION)
+WHERE TRIM(TOUPPER(n.n_name)) IN ['FRANCE', 'GERMANY']
+MATCH (o:ORDERS)-[:ORDERS_CUSTOMER]->(c:CUSTOMER)
+WHERE o.o_orderkey<=1000
+WITH c.c_custkey AS customerId, TRIM(n.n_name) AS nationName, COLLECT(DISTINCT o.o_orderkey) AS orderKeys
+RETURN customerId, nationName, apoc.coll.sort(orderKeys) AS orders_list
+ORDER BY customerId
+LIMIT 1000;
+
+--88. Afisarea unei liste cu toate comenzile care au un id <=1000 ale clientilor din Europa
+MATCH (c:CUSTOMER)-[:CUSTOMER_NATION]->(n:NATION)-[:NATION_REGION]->(r:REGION)
+WHERE TRIM(TOUPPER(r.r_name)) = 'EUROPE'
+MATCH (o:ORDERS)-[:ORDERS_CUSTOMER]->(c:CUSTOMER)
+WHERE o.o_orderkey<=1000
+WITH c.c_custkey AS customerId, TRIM(r.r_name) AS regionName, TRIM(n.n_name) AS nationName, COLLECT(DISTINCT o.o_orderkey) AS orderKeys
+RETURN customerId, regionName, nationName, apoc.coll.sort(orderKeys) AS orders_list
+ORDER BY customerId
+LIMIT 1000;
+
+--89. Afisarea unei liste cu toate comenzile care au un id <=1000 ale clientilor din Europa sau Asia
+MATCH (c:CUSTOMER)-[:CUSTOMER_NATION]->(n:NATION)-[:NATION_REGION]->(r:REGION)
+WHERE TRIM(TOUPPER(r.r_name)) = 'EUROPE' OR TRIM(TOUPPER(r.r_name)) = 'ASIA'
+MATCH (o:ORDERS)-[:ORDERS_CUSTOMER]->(c:CUSTOMER)
+WHERE o.o_orderkey<=1000
+WITH c.c_custkey AS customerId, TRIM(r.r_name) AS regionName, TRIM(n.n_name) AS nationName, COLLECT(DISTINCT o.o_orderkey) AS orderKeys
+RETURN customerId, regionName, nationName, apoc.coll.sort(orderKeys) AS orders_list
+ORDER BY customerId
+LIMIT 1000;
+
+--90. Afisarea unei liste cu toate comenzile care au un id <=1000 ale clientilor din Europa, Asia sau America
+MATCH (c:CUSTOMER)-[:CUSTOMER_NATION]->(n:NATION)-[:NATION_REGION]->(r:REGION)
+WHERE TRIM(TOUPPER(r.r_name)) = 'EUROPE' OR TRIM(TOUPPER(r.r_name)) = 'ASIA' OR TRIM(TOUPPER(r.r_name)) = 'AMERICA'
+MATCH (o:ORDERS)-[:ORDERS_CUSTOMER]->(c:CUSTOMER)
+WHERE o.o_orderkey<=1000
+WITH c.c_custkey AS customerId, TRIM(r.r_name) AS regionName, TRIM(n.n_name) AS nationName, COLLECT(DISTINCT o.o_orderkey) AS orderKeys
+RETURN customerId, regionName, nationName, apoc.coll.sort(orderKeys) AS orders_list
+ORDER BY customerId
+LIMIT 1000;
+
+--91. Afisarea unei liste cu toate comenzile care au un id <=1000 ale clientilor din Europa, Asia sau America folosind clauza IN
+MATCH (c:CUSTOMER)-[:CUSTOMER_NATION]->(n:NATION)-[:NATION_REGION]->(r:REGION)
+WHERE TRIM(TOUPPER(r.r_name)) IN ['EUROPE','ASIA','AMERICA'] 
+MATCH (o:ORDERS)-[:ORDERS_CUSTOMER]->(c:CUSTOMER)
+WHERE o.o_orderkey<=1000
+WITH c.c_custkey AS customerId, TRIM(r.r_name) AS regionName, TRIM(n.n_name) AS nationName, COLLECT(DISTINCT o.o_orderkey) AS orderKeys
+RETURN customerId, regionName, nationName, apoc.coll.sort(orderKeys) AS orders_list
+ORDER BY customerId
+LIMIT 1000;
+
+--92. Afisarea unei liste cu toate comenzile clientilor plasate in anul 2000
+MATCH (o:ORDERS)-[:ORDERS_CUSTOMER]->(c:CUSTOMER)
+WHERE date(o.o_orderdate).year = 2000
+WITH c.c_custkey AS customerId, c.c_name AS customerName, COLLECT(DISTINCT o.o_orderkey) AS orderKeys
+RETURN customerId, customerName, apoc.coll.sort(orderKeys) AS orders_list
+ORDER BY customerId;
+
+--93. Afisarea unei liste cu toate comenzile care au un id <=1500 si o valoare mai mare de 200000, per client
+MATCH (o:ORDERS)-[:ORDERS_CUSTOMER]->(c:CUSTOMER)
+WHERE o.o_totalprice>200000 AND o.o_orderkey<=1500
+WITH c, COLLECT(DISTINCT o.o_orderkey) AS orderKeys
+RETURN c.c_custkey AS customerId, c.c_name AS customerName, apoc.coll.sort(orderKeys) AS orders_list
+ORDER BY customerId
+LIMIT 1000;
+
+--94. Afisarea unei liste cu toate comenzile care au un id <= 1000 ale clientilor din Europa, Asia sau America plasate in anul 1996
+MATCH (c:CUSTOMER)-[:CUSTOMER_NATION]->(n:NATION)-[:NATION_REGION]->(r:REGION)
+WHERE TRIM(TOUPPER(r.r_name)) = 'EUROPE' OR TRIM(TOUPPER(r.r_name)) = 'ASIA' OR TRIM(TOUPPER(r.r_name)) = 'AMERICA'
+MATCH (o:ORDERS)-[:ORDERS_CUSTOMER]->(c:CUSTOMER)
+WHERE date(o.o_orderdate).year = 1996 AND o.o_orderkey<=1000
+WITH c.c_custkey AS customerId, COLLECT(DISTINCT o.o_orderkey) AS orderKeys
+RETURN customerId, apoc.coll.sort(orderKeys) AS orders_list
+ORDER BY customerId
+LIMIT 1000;
+
+--95. Afisarea unei liste cu toate comenzile care au un id <= 1000 ale clientilor din Europa, Asia sau America plasate in anul 1996 sau in 1997
+MATCH (c:CUSTOMER)-[:CUSTOMER_NATION]->(n:NATION)-[:NATION_REGION]->(r:REGION)
+WHERE TRIM(TOUPPER(r.r_name)) = 'EUROPE' OR TRIM(TOUPPER(r.r_name)) = 'ASIA' OR TRIM(TOUPPER(r.r_name)) = 'AMERICA'
+MATCH (o:ORDERS)-[:ORDERS_CUSTOMER]->(c:CUSTOMER)
+WHERE (date(o.o_orderdate).year = 1996 OR date(o.o_orderdate).year = 1997) AND o.o_orderkey<=1000
+WITH c.c_custkey AS customerId, COLLECT(DISTINCT o.o_orderkey) AS orderKeys
+RETURN customerId, apoc.coll.sort(orderKeys) AS orders_list
+ORDER BY customerId
+LIMIT 1000;
+
+--96. Afisarea unei liste cu toate comenzile care au un id <= 1000 ale clientilor din Europa, Asia sau America plasate intre anii 1995 si 1998
+MATCH (c:CUSTOMER)-[:CUSTOMER_NATION]->(n:NATION)-[:NATION_REGION]->(r:REGION)
+WHERE TRIM(TOUPPER(r.r_name)) = 'EUROPE' OR TRIM(TOUPPER(r.r_name)) = 'ASIA' OR TRIM(TOUPPER(r.r_name)) = 'AMERICA'
+MATCH (o:ORDERS)-[:ORDERS_CUSTOMER]->(c:CUSTOMER)
+WHERE date(o.o_orderdate).year >= 1995 AND date(o.o_orderdate).year <= 1998 AND o.o_orderkey<=1000
+WITH c.c_custkey AS customerId, COLLECT(DISTINCT o.o_orderkey) AS orderKeys
+RETURN customerId, apoc.coll.sort(orderKeys) AS orders_list
+ORDER BY customerId
+LIMIT 1000;
+
+--97. Afisarea unei liste cu toate comenzile care au un id <= 1000 ale clientilor din Europa, Asia sau America plasate in primele 3 luni ale anului 1998
+MATCH (c:CUSTOMER)-[:CUSTOMER_NATION]->(n:NATION)-[:NATION_REGION]->(r:REGION)
+WHERE TRIM(TOUPPER(r.r_name)) = 'EUROPE' OR TRIM(TOUPPER(r.r_name)) = 'ASIA' OR TRIM(TOUPPER(r.r_name)) = 'AMERICA'
+MATCH (o:ORDERS)-[:ORDERS_CUSTOMER]->(c:CUSTOMER)
+WHERE date(o.o_orderdate).year = 1998 AND date(o.o_orderdate).month <= 3 AND date(o.o_orderdate).month >= 1 AND o.o_orderkey<=1000
+WITH c.c_custkey AS customerId, COLLECT(DISTINCT o.o_orderkey) AS orderKeys
+RETURN customerId, apoc.coll.sort(orderKeys) AS orders_list
+ORDER BY customerId
+LIMIT 1000;
+
+--98. Afisarea unei liste cu toate comenzile care au un id <= 1000 ale clientilor din Europa sau America plasate in primele 5 luni ale anului 1998
+MATCH (c:CUSTOMER)-[:CUSTOMER_NATION]->(n:NATION)-[:NATION_REGION]->(r:REGION)
+WHERE TRIM(TOUPPER(r.r_name)) = 'EUROPE' OR TRIM(TOUPPER(r.r_name)) = 'AMERICA'
+MATCH (o:ORDERS)-[:ORDERS_CUSTOMER]->(c:CUSTOMER)
+WHERE date(o.o_orderdate).year = 1998 AND date(o.o_orderdate).month <= 5 AND date(o.o_orderdate).month >= 1 AND o.o_orderkey<=1000
+WITH c.c_custkey AS customerId, COLLECT(DISTINCT o.o_orderkey) AS orderKeys
+RETURN customerId, apoc.coll.sort(orderKeys) AS orders_list
+ORDER BY customerId
+LIMIT 1000;
+
+--99. Afisarea unei liste cu toate comenzile care au un id <= 1000 ale clientilor din Europa sau America plasate in primele 5 luni ale anului 1998, care au un total mai mare de 40000
+MATCH (c:CUSTOMER)-[:CUSTOMER_NATION]->(n:NATION)-[:NATION_REGION]->(r:REGION)
+WHERE TRIM(TOUPPER(r.r_name)) = 'EUROPE' OR TRIM(TOUPPER(r.r_name)) = 'AMERICA'
+MATCH (o:ORDERS)-[:ORDERS_CUSTOMER]->(c:CUSTOMER)
+WHERE date(o.o_orderdate).year = 1998 AND date(o.o_orderdate).month <= 5 AND date(o.o_orderdate).month >= 1 AND o.o_totalprice > 40000 AND o.o_orderkey<=1000
+WITH c.c_custkey AS customerId, COLLECT(DISTINCT o.o_orderkey) AS orderKeys
+RETURN customerId, apoc.coll.sort(orderKeys) AS orders_list
+ORDER BY customerId
+LIMIT 1000;
+
+--100. Afisarea unei liste cu toate comenzile care au un id <= 1500 ale clientilor de natiune franceza sau germana care au un total cuprins intre 20000-40000
+MATCH (c:CUSTOMER)-[:CUSTOMER_NATION]->(n:NATION)
+WHERE TRIM(TOUPPER(n.n_name)) IN ['FRANCE', 'GERMANY']
+MATCH (o:ORDERS)-[:ORDERS_CUSTOMER]->(c:CUSTOMER)
+WHERE o.o_totalprice >= 20000 AND o.o_totalprice <= 50000 AND o.o_orderkey<=1000
+WITH c.c_custkey AS customerId, TRIM(n.n_name) AS nationName, COLLECT(DISTINCT o.o_orderkey) AS orderKeys
+RETURN customerId, nationName, apoc.coll.sort(orderKeys) AS orders_list
+ORDER BY customerId
+LIMIT 1000;
+
+
+-------------------------
+--101. (SAME AS 69) Afisarea unei liste cu toate comenzile care au un id <=10000 ale clientului cu id-ul 10
+MATCH (o:ORDERS)-[:ORDERS_CUSTOMER]->(c:CUSTOMER)
+WHERE c.c_custkey = 10 AND o.o_orderkey<=10000
+WITH DISTINCT o.o_orderkey AS orderKey
+ORDER BY orderKey
+WITH COLLECT(orderKey) AS ordersWithSameCustomer
+RETURN REDUCE(s = 'All orders for customer with id 10: ', orderKey IN ordersWithSameCustomer | s + orderKey + ', ') AS OrdersWithSameCustomer;
+
+--102. (SAME AS 76) Afisarea unei liste cu toate comenzile care au un id cuprins intre [353,10000] ale clientului cu id-ul 19 care au fost plasate intre anii 1990 si 2000
+MATCH (o:ORDERS)-[:ORDERS_CUSTOMER]->(c:CUSTOMER)
+WHERE c.c_custkey = 19 AND date(o.o_orderdate).year >= 1990 AND date(o.o_orderdate).year <= 2000 AND o.o_orderkey>=353 AND o.o_orderkey<=10000
+WITH DISTINCT o.o_orderkey AS orderKey
+ORDER BY orderKey
+WITH COLLECT(orderKey) AS ordersWithSameCustomer
+RETURN REDUCE(s = 'All orders for customer with id 19: ', orderKey IN ordersWithSameCustomer | s + orderKey + ', ') AS Orders;
+
+--103. (SAME AS 77) Afisarea unei liste cu toate comenzile care au un id cuprins intre [1500,9000] ale clientului cu id-ul id-ul 352 care au fost plasate in perioada [01.1992;08.1992]
+MATCH (o:ORDERS)-[:ORDERS_CUSTOMER]->(c:CUSTOMER)
+WHERE c.c_custkey = 352 AND date(o.o_orderdate).year = 1992 AND date(o.o_orderdate).month >=1 AND date(o.o_orderdate).month <=8 AND o.o_orderkey>=1500 AND o.o_orderkey<=9000
+WITH DISTINCT o.o_orderkey AS orderKey
+ORDER BY orderKey
+WITH COLLECT(orderKey) AS ordersWithSameCustomer
+RETURN REDUCE(s = 'All orders for customer with id 352: ', orderKey IN ordersWithSameCustomer | s + orderKey + ', ') AS Orders;
+
+--104. (SAME AS 79) Afisarea unei liste cu toate comenzile care au un id cuprins intre [20000,60000] ale clientului cu id-ul 19 care au fost plasate in prima zi a lunii
+MATCH (o:ORDERS)-[:ORDERS_CUSTOMER]->(c:CUSTOMER)
+WHERE c.c_custkey = 19 AND date(o.o_orderdate).day=1 AND o.o_orderkey>=20000 AND o.o_orderkey<=60000
+WITH DISTINCT o.o_orderkey AS orderKey
+ORDER BY orderKey
+WITH COLLECT(orderKey) AS ordersWithSameCustomer
+RETURN REDUCE(s = 'All orders for customer with id 62: ', orderKey IN ordersWithSameCustomer | s + orderKey + ', ') AS Orders;
+
+--105. (SAME AS 95) Afisarea unei liste cu toate comenzile care au un id <= 5000 ale clientilor din Europa, Asia sau America plasate in anul 1996 sau in 1997
+MATCH (c:CUSTOMER)-[:CUSTOMER_NATION]->(n:NATION)-[:NATION_REGION]->(r:REGION)
+WHERE TRIM(TOUPPER(r.r_name)) = 'EUROPE' OR TRIM(TOUPPER(r.r_name)) = 'ASIA' OR TRIM(TOUPPER(r.r_name)) = 'AMERICA'
+MATCH (o:ORDERS)-[:ORDERS_CUSTOMER]->(c:CUSTOMER)
+WHERE (date(o.o_orderdate).year = 1996 OR date(o.o_orderdate).year = 1997) AND o.o_orderkey<=5000
+WITH c.c_custkey AS customerId, COLLECT(DISTINCT o.o_orderkey) AS orderKeys
+RETURN customerId, apoc.coll.sort(orderKeys) AS orders_list
+ORDER BY customerId
+LIMIT 1000;
